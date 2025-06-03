@@ -1,0 +1,10 @@
+{
+  "name": "ghl-notes-parser",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.8"
+  }
+}
