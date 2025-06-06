@@ -6,20 +6,23 @@ app.use(express.json());
 
 const GHL_API_KEY = process.env.GHL_API_KEY;
 
-// Use field keys — NOT field IDs
-const CUSTOM_FIELD_KEYS = [
-  "credit_range",
-  "zip",
-  "property_type",
-  "property_use_occupancy",
-  "employment",
-  "first_time_buyer",
-  "property_purchase_progress",
-  "amount_for_qualification",
-  "downpayment",
-  "gross_annual_income",
-  "monthly_expenses"
-];
+// Mapping from note labels to internal field keys
+const FIELD_KEY_REMAP = {
+  estimated_credit_score: "credit_range",
+  zip_code: "zip",
+  type_of_property: "property_type",
+  how_will_this_property_be_used: "property_use_occupancy",
+  employment: "employment",
+  first_time_buyer: "first_time_buyer",
+  property_purchase_progress: "property_purchase_progress",
+  amount_for_qualification: "amount_for_qualification",
+  downpayment: "downpayment",
+  gross_annual_income: "gross_annual_income",
+  monthly_expenses: "monthly_expenses",
+  your_full_name: "your_full_name",
+  your_email: "your_email",
+  your_phone_number: "your_phone_number"
+};
 
 app.post("/api/parse", async (req, res) => {
   try {
@@ -31,17 +34,18 @@ app.post("/api/parse", async (req, res) => {
       return res.status(400).json({ error: "Missing contactId or notes" });
     }
 
-    // Parse the notes into key-value pairs
+    // Normalize notes into key-value pairs
     const fields = {};
     notes.split(",").forEach(pair => {
-      const [key, value] = pair.split(":").map(str => str.trim());
-      if (key && value) {
-        const normalizedKey = key.toLowerCase().replace(/\s+/g, "_");
-        fields[normalizedKey] = value;
+      const [rawKey, value] = pair.split(":").map(str => str.trim());
+      if (rawKey && value) {
+        const normalizedKey = rawKey.toLowerCase().replace(/\s+/g, "_");
+        const finalKey = FIELD_KEY_REMAP[normalizedKey] || normalizedKey;
+        fields[finalKey] = value;
       }
     });
 
-    // Extract first and last name
+    // Split full name into first and last
     let firstName = "", lastName = "";
     if (fields.your_full_name) {
       const parts = fields.your_full_name.trim().split(" ");
@@ -49,11 +53,14 @@ app.post("/api/parse", async (req, res) => {
       lastName = parts.slice(1).join(" ") || " ";
     }
 
-    // Build customField object using keys
+    // Extract only mapped custom field keys (no trimming or $ removal for now)
     const customFieldPayload = {};
-    CUSTOM_FIELD_KEYS.forEach(key => {
-      if (fields[key]) {
-        customFieldPayload[key] = fields[key]; // No trimming or dollar removal
+    Object.values(FIELD_KEY_REMAP).forEach(key => {
+      if (
+        !["your_full_name", "your_email", "your_phone_number"].includes(key) &&
+        fields[key]
+      ) {
+        customFieldPayload[key] = fields[key];
       }
     });
 
