@@ -6,31 +6,31 @@ app.use(express.json());
 
 const GHL_API_KEY = process.env.GHL_API_KEY;
 
+// Use GHL custom field KEYS, not IDs
 const CUSTOM_FIELD_MAP = {
-  credit_range: "custom_field_1QakOdKIuo0qHDTA9VhS",
-  zip: "custom_field_S9wHJcWBMsdCjHtBCy9c",
-  property_type: "custom_field_nofDhYJy2dwWBH55mqNK",
-  property_use_occupancy: "custom_field_wvNx8g9nJalk62iW9tw6",
-  employment: "custom_field_pr8caZ14fkGStYsB2yyX",
-  first_time_buyer: "custom_field_q7Qo3VqK6aNqEgOdi3nD",
-  property_purchase_progress: "custom_field_Jb2qp78TEwnYLo1AK8Gd",
-  amount_for_qualification: "custom_field_64S8oop42NAR1zYrdF4L",
-  downpayment: "custom_field_ztu7bVHm07nfXZV73xtG",
-  gross_annual_income: "custom_field_996ZBqgv4SB8qEHjz0e7",
-  monthly_expenses: "custom_field_dgK3k6ImFuZ83FmupWDE"
+  credit_range: "credit_range",
+  zip: "zip",
+  property_type: "property_type",
+  property_use_occupancy: "property_use_occupancy",
+  employment: "employment",
+  first_time_buyer: "first_time_buyer",
+  property_purchase_progress: "property_purchase_progress",
+  amount_for_qualification: "amount_for_qualification",
+  downpayment: "downpayment",
+  gross_annual_income: "gross_annual_income",
+  monthly_expenses: "monthly_expenses"
 };
 
 app.post("/api/parse", async (req, res) => {
   try {
     const { contactId, notes } = req.body.customData || {};
-
     console.log("Webhook Payload Received:", req.body);
 
     if (!contactId || !notes) {
       return res.status(400).json({ error: "Missing contactId or notes" });
     }
 
-    // Parse the notes field into key-value pairs
+    // Parse key-value pairs from notes
     const fields = {};
     notes.split(",").forEach(pair => {
       const parts = pair.split(":");
@@ -42,7 +42,6 @@ app.post("/api/parse", async (req, res) => {
       }
     });
 
-    // Split full name into first and last
     let firstName = "", lastName = "";
     if (fields.your_full_name) {
       const parts = fields.your_full_name.trim().split(" ");
@@ -50,11 +49,11 @@ app.post("/api/parse", async (req, res) => {
       lastName = parts.slice(1).join(" ") || " ";
     }
 
-    // Construct payload for custom fields
+    // Build payload using custom field KEYS
     const customFieldPayload = {};
-    for (const [key, fieldId] of Object.entries(CUSTOM_FIELD_MAP)) {
+    for (const [key, fieldKey] of Object.entries(CUSTOM_FIELD_MAP)) {
       if (fields[key]) {
-        customFieldPayload[fieldId] = fields[key];
+        customFieldPayload[fieldKey] = fields[key];
       }
     }
 
