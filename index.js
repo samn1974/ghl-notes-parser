@@ -4,11 +4,10 @@ const axios = require("axios");
 const app = express();
 app.use(express.json());
 
-// Your GoHighLevel API Key from environment variable
 const GHL_API_KEY = process.env.GHL_API_KEY;
 
-// Helper to clean number strings (remove $ and commas)
-const cleanNumber = (val) => val ? val.replace(/[\$,]/g, '').trim() : "";
+// Clean "$" and "," from number strings
+const cleanNumber = (val) => val ? val.replace(/[\$,]/g, "").trim() : "";
 
 app.post("/api/parse", async (req, res) => {
   try {
@@ -18,62 +17,61 @@ app.post("/api/parse", async (req, res) => {
       return res.status(400).json({ error: "Missing contactId or notes" });
     }
 
-    // Normalize Notes field into a key-value object
+    // Parse the notes field into key-value pairs
     const fields = {};
     notes.split(",").forEach(pair => {
-      const [key, value] = pair.split(":").map(s => s.trim());
+      const [key, value] = pair.split(":").map(str => str.trim());
       if (key && value) {
-        fields[key.toLowerCase().replace(/\s+/g, "_")] = value;
+        const normalizedKey = key.toLowerCase().replace(/\s+/g, "_");
+        fields[normalizedKey] = value;
       }
     });
 
-    // Split full name
+    // Split full name into first and last
     let firstName = "", lastName = "";
     if (fields.your_full_name) {
-      const nameParts = fields.your_full_name.trim().split(" ");
-      firstName = nameParts[0];
-      lastName = nameParts.slice(1).join(" ") || " ";
+      const parts = fields.your_full_name.trim().split(" ");
+      firstName = parts[0];
+      lastName = parts.slice(1).join(" ") || " ";
     }
 
-    // Construct payload for GHL API
+    // Construct payload with your custom mappings
     const payload = {
-      zip: fields.zip_code || "",
-      property_type: fields.type_of_property || "",
-      property_use_occupancy: fields.how_will_this_property_be_used || "",
-      loan_amount: cleanNumber(fields.amount_for_qualification),
-      down_payment: cleanNumber(fields.downpayment),
-      income: cleanNumber(fields.gross_annual_income),
-      employment: fields.employment || "",
-      monthly_expenses: cleanNumber(fields.monthly_expenses),
-      credit_range: fields.estimated_credit_score || "",
-      how_soon_are_you_looking_to_buy: fields.property_purchase_progress || "",
-      first_time_buyer: fields.first_time_buyer || "",
       first_name: firstName,
       last_name: lastName,
       email: fields.your_email || "",
-      phone: fields.your_phone_number || ""
+      phone: fields.your_phone_number || "",
+      credit_range: fields.estimated_credit_score || "",                         // {{ contact.credit_range }}
+      zip: fields.zip_code || "",                                               // {{ contact.zip }}
+      property_type: fields.type_of_property || "",                             // {{ contact.property_type }}
+      property_use_occupancy: fields.how_will_this_property_be_used || "",      // {{ contact.property_use_occupancy }}
+      employment: fields.employment || "",                                      // {{ contact.employment }}
+      first_time_buyer: fields.first_time_buyer || "",                          // {{ contact.first_time_buyer }}
+      property_purchase_progress: fields.property_purchase_progress || "",      // {{ contact.property_purchase_progress }}
+      amount_for_qualification: cleanNumber(fields.amount_for_qualification),   // {{ contact.amount_for_qualification }}
+      downpayment: cleanNumber(fields.downpayment),                             // {{ contact.downpayment }}
+      gross_annual_income: cleanNumber(fields.gross_annual_income),             // {{ contact.gross_annual_income }}
+      monthly_expenses: cleanNumber(fields.monthly_expenses)                    // {{ contact.monthly_expenses }}
     };
 
     // Log for debugging
-    console.log("Updating contact:", contactId);
-    console.log("Payload being sent:", payload);
+    console.log("Updating contact ID:", contactId);
+    console.log("Parsed Notes:", fields);
+    console.log("Final Payload:", payload);
 
-    // Send to GHL API
-    const response = await axios.put(
-      `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${GHL_API_KEY}`,
-          "Content-Type": "application/json"
-        }
+    // Call GoHighLevel API
+    await axios.put(`https://rest.gohighlevel.com/v1/contacts/${contactId}`, payload, {
+      headers: {
+        Authorization: `Bearer ${GHL_API_KEY}`,
+        "Content-Type": "application/json"
       }
-    );
+    });
 
     res.status(200).json({ success: true, updated: payload });
-  } catch (err) {
-    console.error("Error updating contact:", err.response?.data || err.message);
-    res.status(500).json({ error: err.message });
+
+  } catch (error) {
+    console.error("Update Error:", error.response?.data || error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
