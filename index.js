@@ -30,15 +30,19 @@ app.post("/api/parse", async (req, res) => {
       return res.status(400).json({ error: "Missing contactId or notes" });
     }
 
+    // Parse the notes field into key-value pairs
     const fields = {};
     notes.split(",").forEach(pair => {
-      const [key, value] = pair.split(":").map(str => str.trim());
-      if (key && value) {
-        const normalizedKey = key.toLowerCase().replace(/\s+/g, "_");
+      const parts = pair.split(":");
+      if (parts.length >= 2) {
+        const [key, ...rest] = parts;
+        const value = rest.join(":").trim();
+        const normalizedKey = key.toLowerCase().trim().replace(/\s+/g, "_");
         fields[normalizedKey] = value;
       }
     });
 
+    // Split full name into first and last
     let firstName = "", lastName = "";
     if (fields.your_full_name) {
       const parts = fields.your_full_name.trim().split(" ");
@@ -46,6 +50,7 @@ app.post("/api/parse", async (req, res) => {
       lastName = parts.slice(1).join(" ") || " ";
     }
 
+    // Construct payload for custom fields
     const customFieldPayload = {};
     for (const [key, fieldId] of Object.entries(CUSTOM_FIELD_MAP)) {
       if (fields[key]) {
@@ -57,7 +62,7 @@ app.post("/api/parse", async (req, res) => {
       first_name: firstName,
       last_name: lastName,
       email: fields.your_email || "",
-      phone: fields.your_phone_number || "",
+      phone: (fields.your_phone_number || "").replace(/^\+?1/, ""),
       customField: customFieldPayload
     };
 
