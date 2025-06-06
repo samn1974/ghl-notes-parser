@@ -22,9 +22,9 @@ const CUSTOM_FIELD_MAP = {
 
 app.post("/api/parse", async (req, res) => {
   try {
-    console.log("Received body:", req.body); // 🪵 Log incoming webhook body
-
     const { contactId, notes } = req.body;
+
+    console.log("Webhook Payload Received:", req.body);
 
     if (!contactId || !notes) {
       return res.status(400).json({ error: "Missing contactId or notes" });
@@ -61,19 +61,24 @@ app.post("/api/parse", async (req, res) => {
       customField: customFieldPayload
     };
 
-    console.log("Final payload to update:", payload);
+    console.log("Final GHL Payload:", payload);
 
-    await axios.put(`https://rest.gohighlevel.com/v1/contacts/${contactId}`, payload, {
-      headers: {
-        Authorization: `Bearer ${GHL_API_KEY}`,
-        "Content-Type": "application/json"
+    const result = await axios.put(
+      `https://rest.gohighlevel.com/v1/contacts/${contactId}`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${GHL_API_KEY}`,
+          "Content-Type": "application/json"
+        }
       }
-    });
+    );
 
+    console.log("GHL Update Success:", result.data);
     res.status(200).json({ success: true, updated: payload });
 
   } catch (error) {
-    console.error("Error updating contact:", error.response?.data || error.message);
+    console.error("Update Error:", error.response?.data || error.message);
     res.status(500).json({ error: error.message });
   }
 });
