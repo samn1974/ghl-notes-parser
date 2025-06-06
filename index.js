@@ -6,7 +6,6 @@ app.use(express.json());
 
 const GHL_API_KEY = process.env.GHL_API_KEY;
 
-// Mapping note keys to GHL custom field IDs
 const CUSTOM_FIELD_MAP = {
   credit_range: "custom_field_1QakOdKIuo0qHDTA9VhS",
   zip: "custom_field_S9wHJcWBMsdCjHtBCy9c",
@@ -23,13 +22,14 @@ const CUSTOM_FIELD_MAP = {
 
 app.post("/api/parse", async (req, res) => {
   try {
+    console.log("Received body:", req.body); // 🪵 Log incoming webhook body
+
     const { contactId, notes } = req.body;
 
     if (!contactId || !notes) {
       return res.status(400).json({ error: "Missing contactId or notes" });
     }
 
-    // Parse custom_notes string
     const fields = {};
     notes.split(",").forEach(pair => {
       const [key, value] = pair.split(":").map(str => str.trim());
@@ -39,7 +39,6 @@ app.post("/api/parse", async (req, res) => {
       }
     });
 
-    // First and last name
     let firstName = "", lastName = "";
     if (fields.your_full_name) {
       const parts = fields.your_full_name.trim().split(" ");
@@ -47,7 +46,6 @@ app.post("/api/parse", async (req, res) => {
       lastName = parts.slice(1).join(" ") || " ";
     }
 
-    // Custom fields mapped
     const customFieldPayload = {};
     for (const [key, fieldId] of Object.entries(CUSTOM_FIELD_MAP)) {
       if (fields[key]) {
@@ -63,8 +61,7 @@ app.post("/api/parse", async (req, res) => {
       customField: customFieldPayload
     };
 
-    console.log("Updating contact:", contactId);
-    console.log("Payload:", JSON.stringify(payload, null, 2));
+    console.log("Final payload to update:", payload);
 
     await axios.put(`https://rest.gohighlevel.com/v1/contacts/${contactId}`, payload, {
       headers: {
@@ -76,7 +73,7 @@ app.post("/api/parse", async (req, res) => {
     res.status(200).json({ success: true, updated: payload });
 
   } catch (error) {
-    console.error("Update Error:", error.response?.data || error.message);
+    console.error("Error updating contact:", error.response?.data || error.message);
     res.status(500).json({ error: error.message });
   }
 });
