@@ -36,14 +36,17 @@ app.post("/api/parse", async (req, res) => {
 
     // Normalize notes into key-value pairs
     const fields = {};
-    notes.split(",").forEach(pair => {
-      const [rawKey, value] = pair.split(":").map(str => str.trim());
-      if (rawKey && value) {
-        const normalizedKey = rawKey.toLowerCase().replace(/\s+/g, "_");
-        const finalKey = FIELD_KEY_REMAP[normalizedKey] || normalizedKey;
-        fields[finalKey] = value;
-      }
-    });
+const matches = notes.match(/[^:,]+:\s*[^:,]+(?:,\d{3})*(?:\.\d+)?/g);
+if (matches) {
+  matches.forEach(pair => {
+    const [rawKey, ...valueParts] = pair.split(":");
+    const value = valueParts.join(":").trim();
+    const normalizedKey = rawKey.trim().toLowerCase().replace(/\s+/g, "_");
+    const finalKey = FIELD_KEY_REMAP[normalizedKey] || normalizedKey;
+    fields[finalKey] = value;
+  });
+}
+
 
     // Split full name into first and last
     let firstName = "", lastName = "";
