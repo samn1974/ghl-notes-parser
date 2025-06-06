@@ -22,7 +22,7 @@ const CUSTOM_FIELD_MAP = {
 
 app.post("/api/parse", async (req, res) => {
   try {
-    const { contactId, notes } = req.body;
+    const { contactId, notes } = req.body.customData || {};
 
     console.log("Webhook Payload Received:", req.body);
 
